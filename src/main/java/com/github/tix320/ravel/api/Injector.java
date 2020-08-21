@@ -15,7 +15,7 @@ public class Injector {
 
 	private final Map<BeanKey, BeanDefinition> beans;
 
-	public Injector(Class<? extends Module> configurationClass) {
+	public Injector(Class<? extends BeansModule> configurationClass) {
 		modules = new HashMap<>();
 		beans = new HashMap<>();
 		analyzeModule(configurationClass, new LinkedHashSet<>(), new HashMap<>(), null);
@@ -36,8 +36,10 @@ public class Injector {
 		return instance;
 	}
 
-	private ModuleDefinition analyzeModule(Class<? extends Module> moduleClass, LinkedHashSet<Class<?>> visitedModules,
-										   Map<BeanKey, BeanMethod> parentModuleBeanMethods, Class<?> parentModuleClass) {
+	private ModuleDefinition analyzeModule(Class<? extends BeansModule> moduleClass,
+										   LinkedHashSet<Class<?>> visitedModules,
+										   Map<BeanKey, BeanMethod> parentModuleBeanMethods,
+										   Class<?> parentModuleClass) {
 		if (visitedModules.contains(moduleClass)) {
 			throw new CycleDependencyException("Cycle module dependency found: ", visitedModules);
 		}
@@ -49,7 +51,7 @@ public class Injector {
 
 		visitedModules.add(moduleClass);
 
-		Module moduleInstance;
+		BeansModule moduleInstance;
 		try {
 			moduleInstance = moduleClass.getConstructor().newInstance();
 		}
@@ -68,9 +70,10 @@ public class Injector {
 		Map<BeanKey, BeanMethod> beanMethods = getModuleBeanMethods(moduleInstance);
 		// TODO we need change fail logic to override beans , which comes from parent module
 		for (BeanKey beanKey : beanMethods.keySet()) {
-			if(parentModuleBeanMethods.containsKey(beanKey)){
-				throw new DuplicateBeanException(String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]", beanKey,
-						moduleClass.getName(), parentModuleClass.getName()));
+			if (parentModuleBeanMethods.containsKey(beanKey)) {
+				throw new DuplicateBeanException(
+						String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
+								beanKey, moduleClass.getName(), parentModuleClass.getName()));
 			}
 		}
 		///////////////////////////////////////////////////////////
@@ -83,8 +86,8 @@ public class Injector {
 		}
 		else {
 			dependentModules = new ArrayList<>();
-			Class<? extends Module>[] dependentConfigurationClasses = useModule.value();
-			for (Class<? extends Module> dependentModule : dependentConfigurationClasses) {
+			Class<? extends BeansModule>[] dependentConfigurationClasses = useModule.value();
+			for (Class<? extends BeansModule> dependentModule : dependentConfigurationClasses) {
 				ModuleDefinition conf = analyzeModule(dependentModule, visitedModules, beanMethods, moduleClass);
 				dependentModules.add(conf);
 			}
@@ -122,6 +125,11 @@ public class Injector {
 
 		BeanDefinition definition = beans.get(beanKey);
 		if (definition != null) {
+			if (beanMethod.ownModule != definition.getOwnModule()) {
+				throw new DuplicateBeanException(
+						String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
+								beanKey, beanMethod.ownModule, definition.getOwnModule()));
+			}
 			return definition;
 		}
 
@@ -153,10 +161,10 @@ public class Injector {
 		Scope scope = beanMethod.scope;
 		BeanDefinition bean;
 		if (scope == Scope.PROTOTYPE) {
-			bean = new PrototypeBean(clazz, beanMethod.beanFactory, dependencyBeans);
+			bean = new PrototypeBean(beanMethod.ownModule, beanMethod.beanFactory, dependencyBeans);
 		}
 		else {
-			bean = new SingletonBean(clazz, beanMethod.beanFactory, dependencyBeans);
+			bean = new SingletonBean(beanMethod.ownModule, beanMethod.beanFactory, dependencyBeans);
 		}
 
 		beans.put(beanMethod.beanKey, bean);
@@ -166,12 +174,15 @@ public class Injector {
 
 	private static class BeanMethod {
 
+		private final Class<? extends BeansModule> ownModule;
 		private final BeanKey beanKey;
 		private final Scope scope;
 		private final List<BeanKey> dependencies;
 		private final BeanFactory beanFactory;
 
-		private BeanMethod(BeanKey beanKey, Scope scope, List<BeanKey> dependencies, BeanFactory beanFactory) {
+		private BeanMethod(Class<? extends BeansModule> ownModule, BeanKey beanKey, Scope scope,
+						   List<BeanKey> dependencies, BeanFactory beanFactory) {
+			this.ownModule = ownModule;
 			this.beanKey = beanKey;
 			this.scope = scope;
 			this.dependencies = dependencies;
@@ -179,8 +190,8 @@ public class Injector {
 		}
 	}
 
-	private Map<BeanKey, BeanMethod> getModuleBeanMethods(Module module) {
-		Class<? extends Module> moduleClass = module.getClass();
+	private Map<BeanKey, BeanMethod> getModuleBeanMethods(BeansModule module) {
+		Class<? extends BeansModule> moduleClass = module.getClass();
 		Method[] methods = moduleClass.getDeclaredMethods();
 
 		Map<BeanKey, BeanMethod> beanMethods = new HashMap<>();
@@ -229,7 +240,8 @@ public class Injector {
 					}
 				};
 
-				beanMethods.put(beanKey, new BeanMethod(beanKey, annotation.scope(), dependencies, beanFactory));
+				beanMethods.put(beanKey,
+						new BeanMethod(moduleClass, beanKey, annotation.scope(), dependencies, beanFactory));
 			}
 		}
 

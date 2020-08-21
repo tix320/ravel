@@ -2,16 +2,19 @@ package com.github.tix320.ravel.internal;
 
 import java.util.List;
 
+import com.github.tix320.ravel.api.BeansModule;
+
 public abstract class BeanDefinition {
 
-	private final Class<?> clazz;
+	private final Class<? extends BeansModule> ownModule;
 
 	private final BeanFactory factoryMethod;
 
 	private final List<BeanDefinition> dependencies;
 
-	public BeanDefinition(Class<?> clazz, BeanFactory beanFactory, List<BeanDefinition> dependencies) {
-		this.clazz = clazz;
+	public BeanDefinition(Class<? extends BeansModule> ownModule, BeanFactory beanFactory,
+						  List<BeanDefinition> dependencies) {
+		this.ownModule = ownModule;
 		this.factoryMethod = beanFactory;
 		this.dependencies = dependencies;
 	}
@@ -27,8 +30,8 @@ public abstract class BeanDefinition {
 		return factoryMethod.create(args);
 	}
 
-	public Class<?> getClazz() {
-		return clazz;
+	public Class<? extends BeansModule> getOwnModule() {
+		return ownModule;
 	}
 
 	public abstract Object getInstance();
