@@ -1,3 +1,2 @@
-# ravel
-Dependency Injection library for java
-Alpha version.
+# Ravel (Alpha version)
+Dependency Injection library for java.
