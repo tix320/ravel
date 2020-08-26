@@ -2,15 +2,14 @@ package com.github.tix320.ravel.internal;
 
 import java.util.List;
 
-import com.github.tix320.ravel.api.BeansModule;
+import com.github.tix320.ravel.api.BeanFactory;
 
-public final class SingletonBean extends BeanDefinition {
+public final class SingletonBean extends BaseBean {
 
 	private volatile Object instance;
 
-	public SingletonBean(Class<? extends BeansModule> ownModule, BeanFactory beanFactory,
-						 List<BeanDefinition> dependencies) {
-		super(ownModule, beanFactory, dependencies);
+	public SingletonBean(BeanFactory beanFactory, List<BaseBean> dependencies) {
+		super(beanFactory, dependencies);
 	}
 
 	@Override

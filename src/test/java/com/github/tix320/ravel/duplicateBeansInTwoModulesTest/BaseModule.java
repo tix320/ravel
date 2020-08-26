@@ -1,7 +1,6 @@
 package com.github.tix320.ravel.duplicateBeansInTwoModulesTest;
 
-import com.github.tix320.ravel.api.BeansModule;
-import com.github.tix320.ravel.api.UseModule;
+import com.github.tix320.ravel.api.UseModules;
 
-@UseModule({MyFirstModule.class, MySecondModule.class})
-public class BaseModule implements BeansModule {}
+@UseModules(classes = {MyFirstModule.class, MySecondModule.class})
+public class BaseModule {}

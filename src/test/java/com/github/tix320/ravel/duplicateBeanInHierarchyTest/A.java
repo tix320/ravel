@@ -1,4 +1,4 @@
-package com.github.tix320.ravel.overrideBeanTest;
+package com.github.tix320.ravel.duplicateBeanInHierarchyTest;
 
 class A {
 

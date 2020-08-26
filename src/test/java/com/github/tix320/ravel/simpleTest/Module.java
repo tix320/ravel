@@ -1,9 +1,8 @@
 package com.github.tix320.ravel.simpleTest;
 
 import com.github.tix320.ravel.api.Bean;
-import com.github.tix320.ravel.api.BeansModule;
 
-public class Module implements BeansModule {
+public class Module {
 
 	@Bean
 	public A a(B b) {

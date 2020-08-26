@@ -5,20 +5,70 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
-import com.github.tix320.ravel.internal.*;
+import com.github.tix320.ravel.internal.BaseBean;
+import com.github.tix320.ravel.internal.ClassBasedModuleDefinition;
+import com.github.tix320.ravel.internal.PrototypeBean;
+import com.github.tix320.ravel.internal.SingletonBean;
 import com.github.tix320.ravel.internal.exception.*;
 
 public class Injector {
 
-	private final Map<Class<?>, ModuleDefinition> modules;
+	private final String ROOT_MODULE_NAME = "ROOT_" + UUID.randomUUID().toString();
 
-	private final Map<BeanKey, BeanDefinition> beans;
+	private final Map<String, ModuleDefinition> modules;
 
-	public Injector(Class<? extends BeansModule> configurationClass) {
+	private final Map<BeanKey, BeanDefinition> beanDefinitions;
+
+	private final Map<BeanKey, BaseBean> beans;
+
+	private final AtomicBoolean built = new AtomicBoolean(false);
+
+	public Injector() {
 		modules = new HashMap<>();
+		beanDefinitions = new HashMap<>();
 		beans = new HashMap<>();
-		analyzeModule(configurationClass, new LinkedHashSet<>(), new HashMap<>(), null);
+	}
+
+	public void registerModule(Class<?> moduleClass) {
+		if (built.get()) {
+			throw new IllegalStateException("Already built");
+		}
+
+		String moduleName = moduleClass.getName();
+
+		if (modules.containsKey(moduleName)) {
+			throw new IllegalArgumentException(String.format("Module with name %s already registered", moduleName));
+		}
+
+		registerClassModule(moduleClass);
+	}
+
+	public void registerDynamicModule(DynamicModuleDefinition moduleDefinition) {
+		if (built.get()) {
+			throw new IllegalStateException("Already built");
+		}
+
+		String moduleName = moduleDefinition.getName();
+
+		if (modules.containsKey(moduleName)) {
+			throw new IllegalArgumentException(String.format("Module with name %s already registered", moduleName));
+		}
+
+		modules.put(moduleName, moduleDefinition);
+	}
+
+	public void build() {
+		if (!built.compareAndSet(false, true)) {
+			throw new IllegalStateException("Already built");
+		}
+
+		ModuleDefinition rootModule = new DynamicModuleDefinition(ROOT_MODULE_NAME, new ArrayList<>(modules.keySet()),
+				Map.of());
+
+		analyzeModule(rootModule);
 	}
 
 	public <T> T inject(Class<T> clazz) {
@@ -26,7 +76,10 @@ public class Injector {
 	}
 
 	public <T> T inject(Class<T> clazz, String qualifier) {
-		BeanDefinition bean = beans.get(new BeanKey(clazz, qualifier));
+		if (!built.get()) {
+			throw new IllegalStateException("Not built yet");
+		}
+		BaseBean bean = beans.get(new BeanKey(clazz, qualifier));
 		if (bean == null) {
 			throw new NoSuchBeanException(String.format("No such bean with params %s", new BeanKey(clazz, qualifier)));
 		}
@@ -36,22 +89,25 @@ public class Injector {
 		return instance;
 	}
 
-	private ModuleDefinition analyzeModule(Class<? extends BeansModule> moduleClass,
-										   LinkedHashSet<Class<?>> visitedModules,
-										   Map<BeanKey, BeanMethod> parentModuleBeanMethods,
-										   Class<?> parentModuleClass) {
+	private void registerClassModule(Class<?> moduleClass) {
+		registerClassModule(moduleClass, new LinkedHashSet<>(), new HashSet<>());
+	}
+
+	private void registerClassModule(Class<?> moduleClass, LinkedHashSet<Class<?>> visitedModules,
+									 Set<Class<?>> processesModules) {
 		if (visitedModules.contains(moduleClass)) {
 			throw new CycleDependencyException("Cycle module dependency found: ", visitedModules);
 		}
 
-		ModuleDefinition definition = modules.get(moduleClass);
-		if (definition != null) {
-			return definition;
+		if (processesModules.contains(moduleClass)) {
+			return;
 		}
 
 		visitedModules.add(moduleClass);
 
-		BeansModule moduleInstance;
+		String moduleName = moduleClass.getName();
+
+		Object moduleInstance;
 		try {
 			moduleInstance = moduleClass.getConstructor().newInstance();
 		}
@@ -67,134 +123,158 @@ public class Injector {
 			throw new ModuleException("Cannot create module instance", e.getTargetException());
 		}
 
-		Map<BeanKey, BeanMethod> beanMethods = getModuleBeanMethods(moduleInstance);
-		// TODO we need change fail logic to override beans , which comes from parent module
-		for (BeanKey beanKey : beanMethods.keySet()) {
-			if (parentModuleBeanMethods.containsKey(beanKey)) {
-				throw new DuplicateBeanException(
-						String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
-								beanKey, moduleClass.getName(), parentModuleClass.getName()));
-			}
-		}
-		///////////////////////////////////////////////////////////
+		Map<BeanKey, BeanDefinition> moduleBeanDefinitions = getModuleBeanDefinitions(moduleInstance);
 
-		UseModule useModule = moduleClass.getAnnotation(UseModule.class);
+		UseModules useModulesAnnotation = moduleClass.getAnnotation(UseModules.class);
 
-		List<ModuleDefinition> dependentModules;
-		if (useModule == null) {
-			dependentModules = List.of();
+		List<String> dependencies;
+		if (useModulesAnnotation == null) {
+			dependencies = List.of();
 		}
 		else {
-			dependentModules = new ArrayList<>();
-			Class<? extends BeansModule>[] dependentConfigurationClasses = useModule.value();
-			for (Class<? extends BeansModule> dependentModule : dependentConfigurationClasses) {
-				ModuleDefinition conf = analyzeModule(dependentModule, visitedModules, beanMethods, moduleClass);
-				dependentModules.add(conf);
+			String[] dynamicDependencies = useModulesAnnotation.names();
+			Class<?>[] classDependencies = useModulesAnnotation.classes();
+
+			dependencies = new ArrayList<>(dynamicDependencies.length + classDependencies.length);
+
+			dependencies.addAll(Arrays.asList(dynamicDependencies));
+
+			for (Class<?> classDependency : classDependencies) {
+				registerClassModule(classDependency, visitedModules, processesModules);
+				dependencies.add(classDependency.getName());
 			}
 		}
 
+		ClassBasedModuleDefinition classBasedModuleDefinition = new ClassBasedModuleDefinition(moduleName, dependencies,
+				moduleBeanDefinitions, moduleInstance);
 
-		List<BeanDefinition> beanDefinitions = new ArrayList<>();
-		for (BeanMethod beanMethod : beanMethods.values()) {
-			BeanDefinition beanDefinition = analyzeBeanMethod(beanMethod, beanMethods);
-			beanDefinitions.add(beanDefinition);
-		}
-
+		modules.put(moduleName, classBasedModuleDefinition);
 		visitedModules.remove(moduleClass);
-
-		ModuleDefinition moduleDefinition = new ModuleDefinition(dependentModules, beanDefinitions);
-
-		modules.put(moduleClass, moduleDefinition);
-
-		return moduleDefinition;
+		processesModules.add(moduleClass);
 	}
 
-	private BeanDefinition analyzeBeanMethod(BeanMethod beanMethod, Map<BeanKey, BeanMethod> beanMethods) {
-		return analyzeBeanMethod(beanMethod, beanMethods, new LinkedHashSet<>());
+	private void analyzeModule(ModuleDefinition moduleDefinition) {
+		analyzeModule(moduleDefinition,
+				new RecursionContext(new LinkedHashSet<>(), new ArrayList<>(), new HashSet<>()));
 	}
 
-	private BeanDefinition analyzeBeanMethod(BeanMethod beanMethod, Map<BeanKey, BeanMethod> beanMethods,
-											 LinkedHashSet<Class<?>> visitedClasses) {
-		Class<?> clazz = beanMethod.beanKey.type;
-		String qualifier = beanMethod.beanKey.qualifier;
-		BeanKey beanKey = new BeanKey(clazz, qualifier);
+	private void analyzeModule(ModuleDefinition moduleDefinition, RecursionContext recursionContext) {
+		LinkedHashSet<ModuleDefinition> visitedModules = recursionContext.visitedModules;
+		List<ModuleDefinition> parentModules = recursionContext.parentModules;
+		Set<ModuleDefinition> processedModules = recursionContext.processedModules;
 
-		if (visitedClasses.contains(clazz)) {
-			throw new CycleDependencyException("Dependency cycle found: ", visitedClasses);
+		if (visitedModules.contains(moduleDefinition)) {
+			List<String> parts = visitedModules.stream()
+					.map(moduleDefinition1 -> moduleDefinition.getName())
+					.collect(Collectors.toList());
+			throw new CycleDependencyException("Cycle module dependency found: ", parts);
 		}
 
-		BeanDefinition definition = beans.get(beanKey);
-		if (definition != null) {
-			if (beanMethod.ownModule != definition.getOwnModule()) {
+		if (processedModules.contains(moduleDefinition)) {
+			return;
+		}
+
+		visitedModules.add(moduleDefinition);
+
+		for (ModuleDefinition parentModule : parentModules) {
+			Set<BeanKey> parentBeanKeys = parentModule.getBeanDefinitions().keySet();
+			Set<BeanKey> currentModuleBeanKeys = moduleDefinition.getBeanDefinitions().keySet();
+			Set<BeanKey> beanInteractions = getSetsInteraction(parentBeanKeys, currentModuleBeanKeys);
+			if (!beanInteractions.isEmpty()) { // TODO error with all interactions
+				BeanKey anyKey = beanInteractions.iterator().next();
+
 				throw new DuplicateBeanException(
 						String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
-								beanKey, beanMethod.ownModule, definition.getOwnModule()));
+								anyKey, moduleDefinition.getName(), parentModule.getName()));
 			}
-			return definition;
 		}
 
-		visitedClasses.add(clazz);
+		List<String> dependencies = moduleDefinition.getDependencies();
 
-		List<BeanKey> dependencies = beanMethod.dependencies;
-		List<BeanDefinition> dependencyBeans = new ArrayList<>(dependencies.size());
+		for (String moduleName : dependencies) {
+			ModuleDefinition dependentModule = modules.get(moduleName);
+			if (dependentModule == null) {
+				throw new ModuleException(
+						String.format("Module with name %s not registered, which need to module %s", moduleName,
+								moduleDefinition.getName()));
+			}
+			else {
+				parentModules.add(moduleDefinition);
+				analyzeModule(dependentModule, recursionContext);
+				parentModules.remove(moduleDefinition);
+			}
+		}
+
+		Set<BeanKey> alreadyExistingBeanDefinitions = this.beanDefinitions.keySet();
+		Set<BeanKey> definitionsToAdd = moduleDefinition.getBeanDefinitions().keySet();
+		Set<BeanKey> interactions = getSetsInteraction(alreadyExistingBeanDefinitions, definitionsToAdd);
+		if (!interactions.isEmpty()) { // TODO error with all interactions
+			BeanKey anyKey = interactions.iterator().next();
+			throw new DuplicateBeanException(
+					String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
+							anyKey, moduleDefinition.getName(), "Unknown"));
+		}
+
+		this.beanDefinitions.putAll(moduleDefinition.getBeanDefinitions());
+		for (BeanDefinition beanDefinition : moduleDefinition.getBeanDefinitions().values()) {
+			analyzeBean(beanDefinition);
+		}
+
+		visitedModules.remove(moduleDefinition);
+
+		processedModules.add(moduleDefinition);
+	}
+
+	private BaseBean analyzeBean(BeanDefinition beanDefinition) {
+		BeanKey beanKey = beanDefinition.getBeanKey();
+
+		BaseBean baseBean = beans.get(beanKey);
+		if (baseBean != null) {
+			return baseBean;
+		}
+
+		List<BeanKey> dependencies = beanDefinition.getDependencies();
+		List<BaseBean> dependencyBeans = new ArrayList<>(dependencies.size());
 		for (BeanKey dependentBeanKey : dependencies) {
-			Class<?> type = dependentBeanKey.type;
+			Class<?> type = dependentBeanKey.getType();
 
-			BeanDefinition beanDefinition = beans.get(dependentBeanKey);
+			BeanDefinition dependentBeanDefinition = beanDefinitions.get(dependentBeanKey);
+			if (dependentBeanDefinition == null) {
+				throw new NoSuchBeanException(
+						String.format("Cannot construct bean %s because of missing dependency %s", beanKey.getType(),
+								type));
 
-			if (beanDefinition == null) {
-				BeanMethod dependentBeanMethod = beanMethods.get(dependentBeanKey);
-				if (dependentBeanMethod == null) {
-					throw new NoSuchBeanException(
-							String.format("Cannot construct bean %s because of missing dependency %s", clazz, type));
-				}
-
-				beanDefinition = analyzeBeanMethod(dependentBeanMethod, beanMethods, visitedClasses);
 			}
 
-			dependencyBeans.add(beanDefinition);
+			BaseBean dependentBean = beans.get(dependentBeanKey);
+
+			if (dependentBean == null) {
+				dependentBean = analyzeBean(dependentBeanDefinition);
+			}
+
+			dependencyBeans.add(dependentBean);
 		}
 
-		visitedClasses.remove(clazz);
 
-
-		Scope scope = beanMethod.scope;
-		BeanDefinition bean;
+		Scope scope = beanDefinition.getScope();
+		BaseBean bean;
 		if (scope == Scope.PROTOTYPE) {
-			bean = new PrototypeBean(beanMethod.ownModule, beanMethod.beanFactory, dependencyBeans);
+			bean = new PrototypeBean(beanDefinition.getFactory(), dependencyBeans);
 		}
 		else {
-			bean = new SingletonBean(beanMethod.ownModule, beanMethod.beanFactory, dependencyBeans);
+			bean = new SingletonBean(beanDefinition.getFactory(), dependencyBeans);
 		}
 
-		beans.put(beanMethod.beanKey, bean);
+		beans.put(beanKey, bean);
 
 		return bean;
 	}
 
-	private static class BeanMethod {
-
-		private final Class<? extends BeansModule> ownModule;
-		private final BeanKey beanKey;
-		private final Scope scope;
-		private final List<BeanKey> dependencies;
-		private final BeanFactory beanFactory;
-
-		private BeanMethod(Class<? extends BeansModule> ownModule, BeanKey beanKey, Scope scope,
-						   List<BeanKey> dependencies, BeanFactory beanFactory) {
-			this.ownModule = ownModule;
-			this.beanKey = beanKey;
-			this.scope = scope;
-			this.dependencies = dependencies;
-			this.beanFactory = beanFactory;
-		}
-	}
-
-	private Map<BeanKey, BeanMethod> getModuleBeanMethods(BeansModule module) {
-		Class<? extends BeansModule> moduleClass = module.getClass();
+	private Map<BeanKey, BeanDefinition> getModuleBeanDefinitions(Object moduleInstance) {
+		Class<?> moduleClass = moduleInstance.getClass();
 		Method[] methods = moduleClass.getDeclaredMethods();
 
-		Map<BeanKey, BeanMethod> beanMethods = new HashMap<>();
+		Map<BeanKey, BeanDefinition> beanDefinitions = new HashMap<>();
 
 		for (Method method : methods) {
 			Bean annotation = method.getAnnotation(Bean.class);
@@ -211,7 +291,7 @@ public class Injector {
 				Class<?> beanType = method.getReturnType();
 				BeanKey beanKey = new BeanKey(beanType, qualifier);
 
-				if (beanMethods.containsKey(beanKey)) {
+				if (beanDefinitions.containsKey(beanKey)) {
 					throw new DuplicateBeanException(
 							String.format("Duplicated beans with same type and qualifier %s in module %s", beanKey,
 									moduleClass.getName()));
@@ -226,55 +306,42 @@ public class Injector {
 					dependencies.add(new BeanKey(type, paramQualifier));
 				}
 
+				Scope scope = annotation.scope();
 
-				BeanFactory beanFactory = dependencies1 -> {
+				beanDefinitions.put(beanKey, new BeanDefinition(beanKey, scope, dependencies, deps -> {
 					try {
-						return method.invoke(module, dependencies1);
+						return method.invoke(moduleInstance, deps);
 					}
 					catch (IllegalAccessException e) {
-						throw new BeanCreationException(String.format("Cannot create bean of %s", beanType), e);
+						throw new BeanCreationException("Cannot construct bean", e);
 					}
 					catch (InvocationTargetException e) {
-						throw new BeanCreationException(String.format("Cannot create bean of %s", beanType),
-								e.getTargetException());
+						throw new BeanCreationException("Cannot construct bean", e.getTargetException());
 					}
-				};
-
-				beanMethods.put(beanKey,
-						new BeanMethod(moduleClass, beanKey, annotation.scope(), dependencies, beanFactory));
+				}));
 			}
 		}
 
-		return beanMethods;
+		return beanDefinitions;
 	}
 
-	private static class BeanKey {
-		private final Class<?> type;
-		private final String qualifier;
+	private static <T> Set<T> getSetsInteraction(Set<T> set1, Set<T> set2) {
+		Set<T> intersectSet = new HashSet<>(set1);
+		intersectSet.retainAll(set2);
+		return intersectSet;
+	}
 
-		private BeanKey(Class<?> type, String qualifier) {
-			this.type = type;
-			this.qualifier = qualifier;
-		}
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o)
-				return true;
-			if (o == null || getClass() != o.getClass())
-				return false;
-			BeanKey beanKey = (BeanKey) o;
-			return type.equals(beanKey.type) && Objects.equals(qualifier, beanKey.qualifier);
-		}
+	private static final class RecursionContext {
+		private final LinkedHashSet<ModuleDefinition> visitedModules;
+		private final List<ModuleDefinition> parentModules;
+		private final Set<ModuleDefinition> processedModules;
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(type, qualifier);
-		}
-
-		@Override
-		public String toString() {
-			return "[type=" + type + ", qualifier=" + qualifier + "]";
+		private RecursionContext(LinkedHashSet<ModuleDefinition> visitedModules, List<ModuleDefinition> parentModules,
+								 Set<ModuleDefinition> processedModules) {
+			this.visitedModules = visitedModules;
+			this.parentModules = parentModules;
+			this.processedModules = processedModules;
 		}
 	}
 }

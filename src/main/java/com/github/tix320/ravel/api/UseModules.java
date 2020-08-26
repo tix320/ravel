@@ -7,7 +7,9 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface UseModule {
+public @interface UseModules {
 
-	Class<? extends BeansModule>[] value();
+	Class<?>[] classes() default {};
+
+	String[] names() default {};
 }

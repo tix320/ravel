@@ -1,10 +1,9 @@
 package com.github.tix320.ravel.duplicateBeanTest;
 
 import com.github.tix320.ravel.api.Bean;
-import com.github.tix320.ravel.api.BeansModule;
 import com.github.tix320.ravel.api.Qualifier;
 
-public class Module implements BeansModule {
+public class Module {
 
 	@Bean
 	@Qualifier("auu")

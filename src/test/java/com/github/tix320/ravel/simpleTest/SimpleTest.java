@@ -9,7 +9,9 @@ public class SimpleTest {
 
 	@Test
 	void test() {
-		Injector injector = new Injector(Module.class);
+		Injector injector = new Injector();
+		injector.registerModule(Module.class);
+		injector.build();
 		A inject = injector.inject(A.class);
 
 		assertEquals("dummy", inject.getText());

@@ -2,13 +2,12 @@ package com.github.tix320.ravel.internal;
 
 import java.util.List;
 
-import com.github.tix320.ravel.api.BeansModule;
+import com.github.tix320.ravel.api.BeanFactory;
 
-public final class PrototypeBean extends BeanDefinition {
+public final class PrototypeBean extends BaseBean {
 
-	public PrototypeBean(Class<? extends BeansModule> ownModule, BeanFactory beanFactory,
-						 List<BeanDefinition> dependencies) {
-		super(ownModule, beanFactory, dependencies);
+	public PrototypeBean(BeanFactory beanFactory, List<BaseBean> dependencies) {
+		super(beanFactory, dependencies);
 	}
 
 	@Override

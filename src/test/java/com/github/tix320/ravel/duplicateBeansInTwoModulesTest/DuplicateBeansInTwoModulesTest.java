@@ -11,7 +11,9 @@ public class DuplicateBeansInTwoModulesTest {
 	@Test
 	void test() {
 		assertThrows(DuplicateBeanException.class, () -> {
-			Injector injector = new Injector(BaseModule.class);
+			Injector injector = new Injector();
+			injector.registerModule(BaseModule.class);
+			injector.build();
 		});
 	}
 }
