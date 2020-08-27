@@ -7,7 +7,4 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface Bean {
-
-	Scope scope() default Scope.SINGLETON;
-}
+public @interface Prototype {}

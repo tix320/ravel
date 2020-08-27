@@ -1,10 +1,10 @@
 package com.github.tix320.ravel.duplicateBeansInTwoModulesTest;
 
-import com.github.tix320.ravel.api.Bean;
+import com.github.tix320.ravel.api.Singleton;
 
 public class MySecondModule {
 
-	@Bean
+	@Singleton
 	public B b() {
 		return new B();
 	}

@@ -277,8 +277,23 @@ public class Injector {
 		Map<BeanKey, BeanDefinition> beanDefinitions = new HashMap<>();
 
 		for (Method method : methods) {
-			Bean annotation = method.getAnnotation(Bean.class);
-			if (annotation != null) {
+			Singleton singletonAnnotation = method.getAnnotation(Singleton.class);
+			Prototype prototypeAnnotation = method.getAnnotation(Prototype.class);
+			if (singletonAnnotation != null && prototypeAnnotation != null) {
+				throw new ModuleException(
+						String.format("Both @%s and @%s annotations declared in method %s (%s)", Singleton.class,
+								Prototype.class, method.getName(), moduleClass));
+			}
+
+			if (singletonAnnotation != null || prototypeAnnotation != null) {
+				Scope scope;
+				if (singletonAnnotation != null) {
+					scope = Scope.SINGLETON;
+				}
+				else {
+					scope = Scope.PROTOTYPE;
+				}
+
 				boolean isPublic = Modifier.isPublic(method.getModifiers());
 				if (!isPublic) {
 					throw new ModuleException(
@@ -305,8 +320,6 @@ public class Injector {
 
 					dependencies.add(new BeanKey(type, paramQualifier));
 				}
-
-				Scope scope = annotation.scope();
 
 				beanDefinitions.put(beanKey, new BeanDefinition(beanKey, scope, dependencies, deps -> {
 					try {
