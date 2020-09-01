@@ -1,6 +1,6 @@
 package com.github.tix320.ravel.duplicateBeanInHierarchyTest;
 
-import com.github.tix320.ravel.api.Singleton;
+import com.github.tix320.ravel.api.scope.Singleton;
 
 public class SubModule {
 

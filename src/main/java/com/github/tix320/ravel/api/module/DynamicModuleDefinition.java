@@ -1,9 +1,13 @@
-package com.github.tix320.ravel.api;
+package com.github.tix320.ravel.api.module;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.github.tix320.ravel.api.bean.BeanDefinition;
+import com.github.tix320.ravel.api.bean.BeanKey;
+import com.github.tix320.ravel.internal.ModuleDefinition;
 
 /**
  * @author Tigran Sargsyan on 26-Aug-20

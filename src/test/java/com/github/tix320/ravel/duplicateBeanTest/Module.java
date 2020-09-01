@@ -1,7 +1,7 @@
 package com.github.tix320.ravel.duplicateBeanTest;
 
-import com.github.tix320.ravel.api.Singleton;
-import com.github.tix320.ravel.api.Qualifier;
+import com.github.tix320.ravel.api.scope.Singleton;
+import com.github.tix320.ravel.api.bean.Qualifier;
 
 public class Module {
 

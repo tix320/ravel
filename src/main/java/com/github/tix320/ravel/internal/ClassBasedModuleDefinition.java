@@ -3,9 +3,8 @@ package com.github.tix320.ravel.internal;
 import java.util.List;
 import java.util.Map;
 
-import com.github.tix320.ravel.api.BeanDefinition;
-import com.github.tix320.ravel.api.BeanKey;
-import com.github.tix320.ravel.api.ModuleDefinition;
+import com.github.tix320.ravel.api.bean.BeanDefinition;
+import com.github.tix320.ravel.api.bean.BeanKey;
 
 /**
  * @author Tigran Sargsyan on 26-Aug-20

@@ -1,4 +1,4 @@
-package com.github.tix320.ravel.api;
+package com.github.tix320.ravel.api.bean;
 
 public interface BeanFactory {
 

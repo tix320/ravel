@@ -8,10 +8,15 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import com.github.tix320.ravel.internal.BaseBean;
-import com.github.tix320.ravel.internal.ClassBasedModuleDefinition;
-import com.github.tix320.ravel.internal.PrototypeBean;
-import com.github.tix320.ravel.internal.SingletonBean;
+import com.github.tix320.ravel.api.bean.BeanDefinition;
+import com.github.tix320.ravel.api.bean.BeanKey;
+import com.github.tix320.ravel.api.bean.Qualifier;
+import com.github.tix320.ravel.api.module.DynamicModuleDefinition;
+import com.github.tix320.ravel.api.module.UseModules;
+import com.github.tix320.ravel.api.scope.Prototype;
+import com.github.tix320.ravel.api.scope.Scope;
+import com.github.tix320.ravel.api.scope.Singleton;
+import com.github.tix320.ravel.internal.*;
 import com.github.tix320.ravel.internal.exception.*;
 
 public class Injector {

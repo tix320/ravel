@@ -1,6 +1,8 @@
-package com.github.tix320.ravel.api;
+package com.github.tix320.ravel.api.bean;
 
 import java.util.List;
+
+import com.github.tix320.ravel.api.scope.Scope;
 
 /**
  * @author Tigran Sargsyan on 25-Aug-20

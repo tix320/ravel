@@ -2,7 +2,7 @@ package com.github.tix320.ravel.internal;
 
 import java.util.List;
 
-import com.github.tix320.ravel.api.BeanFactory;
+import com.github.tix320.ravel.api.bean.BeanFactory;
 
 public final class SingletonBean extends BaseBean {
 

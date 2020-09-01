@@ -1,8 +1,11 @@
-package com.github.tix320.ravel.api;
+package com.github.tix320.ravel.internal;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import com.github.tix320.ravel.api.bean.BeanDefinition;
+import com.github.tix320.ravel.api.bean.BeanKey;
 
 
 /**
