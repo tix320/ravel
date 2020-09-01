@@ -137,7 +137,7 @@ public class Injector {
 			dependencies = List.of();
 		}
 		else {
-			String[] dynamicDependencies = useModulesAnnotation.names();
+			String[] dynamicDependencies = useModulesAnnotation.dynamic();
 			Class<?>[] classDependencies = useModulesAnnotation.classes();
 
 			dependencies = new ArrayList<>(dynamicDependencies.length + classDependencies.length);

@@ -11,5 +11,5 @@ public @interface UseModules {
 
 	Class<?>[] classes() default {};
 
-	String[] names() default {};
+	String[] dynamic() default {};
 }
