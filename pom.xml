@@ -15,14 +15,44 @@
 	<version>0.1.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<dependencies>
-		<dependency>
-			<groupId>org.junit.jupiter</groupId>
-			<artifactId>junit-jupiter-api</artifactId>
-			<version>5.6.0</version>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
+
+	<name>Ravel</name>
+	<description>Dependency injection library</description>
+	<url>https://github.com/tix320/ravel</url>
+
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<scm>
+		<url>https://github.com/tix320/ravel</url>
+		<connection>scm:git:https://github.com/tix320/ravel</connection>
+		<developerConnection>scm:git:https://github.com/tix320/ravel</developerConnection>
+	</scm>
+
+	<developers>
+		<developer>
+			<id>tix32</id>
+			<name>Tigran Sargsyan</name>
+			<email>tixtix320@gmail.com</email>
+			<timezone>UTC+4</timezone>
+		</developer>
+	</developers>
+
+	<distributionManagement>
+		<snapshotRepository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+		<repository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+		</repository>
+	</distributionManagement>
 
 	<build>
 		<plugins>
@@ -49,49 +79,71 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!--            <plugin>-->
-			<!--                <groupId>org.apache.maven.plugins</groupId>-->
-			<!--                <artifactId>maven-javadoc-plugin</artifactId>-->
-			<!--                <version>3.1.1</version>-->
-			<!--                <configuration>-->
-			<!--                    <javadocExecutable>${jdk-home}\bin\javadoc.exe</javadocExecutable>-->
-			<!--                </configuration>-->
-			<!--                <executions>-->
-			<!--                    <execution>-->
-			<!--                        <id>attach-javadocs</id>-->
-			<!--                        <phase>package</phase>-->
-			<!--                        <goals>-->
-			<!--                            <goal>jar</goal>-->
-			<!--                        </goals>-->
-			<!--                    </execution>-->
-			<!--                </executions>-->
-			<!--            </plugin>-->
-			<!--            <plugin>-->
-			<!--                <groupId>org.sonatype.plugins</groupId>-->
-			<!--                <artifactId>nexus-staging-maven-plugin</artifactId>-->
-			<!--                <version>1.6.8</version>-->
-			<!--                <extensions>true</extensions>-->
-			<!--                <configuration>-->
-			<!--                    <serverId>ossrh</serverId>-->
-			<!--                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>-->
-			<!--                    <autoReleaseAfterClose>true</autoReleaseAfterClose>-->
-			<!--                </configuration>-->
-			<!--            </plugin>-->
-			<!--            <plugin>-->
-			<!--                <groupId>org.apache.maven.plugins</groupId>-->
-			<!--                <artifactId>maven-gpg-plugin</artifactId>-->
-			<!--                <version>1.6</version>-->
-			<!--                <executions>-->
-			<!--                    <execution>-->
-			<!--                        <id>sign-artifacts</id>-->
-			<!--                        <phase>verify</phase>-->
-			<!--                        <goals>-->
-			<!--                            <goal>sign</goal>-->
-			<!--                        </goals>-->
-			<!--                    </execution>-->
-			<!--                </executions>-->
-			<!--            </plugin>-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>3.1.1</version>
+				<configuration>
+					<javadocExecutable>${jdk-home}\bin\javadoc.exe</javadocExecutable>
+				</configuration>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.sonatype.plugins</groupId>
+				<artifactId>nexus-staging-maven-plugin</artifactId>
+				<version>1.6.8</version>
+				<extensions>true</extensions>
+				<configuration>
+					<serverId>ossrh</serverId>
+					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+					<autoReleaseAfterClose>true</autoReleaseAfterClose>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-gpg-plugin</artifactId>
+				<version>1.6</version>
+				<executions>
+					<execution>
+						<id>sign-artifacts</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>sign</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>ossrh</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<gpg.executable>gpg</gpg.executable>
+				<gpg.passphrase>${gpg.pass}</gpg.passphrase>
+			</properties>
+		</profile>
+	</profiles>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>5.6.0</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 </project>
 
