@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public class DuplicateBeanTest {
 
 	@Test
-	void test() {
+	public void test() {
 		assertThrows(DuplicateBeanException.class, () -> {
 			Injector injector = new Injector();
 			injector.registerModule(Module.class);
