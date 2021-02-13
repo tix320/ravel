@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class WithSubModuleTest {
 
 	@Test
-	void test() {
+	public void test() {
 		Injector injector = new Injector();
 		injector.registerModule(Module.class);
 		injector.build();
