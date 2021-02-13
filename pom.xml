@@ -13,7 +13,7 @@
 	<packaging>jar</packaging>
 
 	<name>Ravel</name>
-	<description>Dependency injection library</description>
+	<description>Dependency injdction library</description>
 	<url>https://github.com/tix320/ravel</url>
 
 	<scm>
