@@ -98,10 +98,14 @@ injector.build();
 BeanA beanA = injector.inject(BeanA.class);
 ```
 
-## Credits
+## Versioning
 
-- Tigran Sargsyan - **[tix320](https://github.com/tix320).**
+This project follows [Semantic Versioning](https://semver.org/).
 
 ## License
-This project is licensed under the Apache License - see the [LICENSE](https://github.com/tix320/sonder/blob/master/LICENSE) file for details.
 
+**Ravel** is released under the [Apache License, Version 2.0](LICENSE).
+
+## Contact
+
+- **Author**: [tix320](https://github.com/tix320)
