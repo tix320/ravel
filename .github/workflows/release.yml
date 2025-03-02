@@ -52,7 +52,7 @@ jobs:
           echo "${{ secrets.SIGNING_PASSWORD }}" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --export-secret-keys > /tmp/secret.gpg
 
       - name: Release to Sonatype
-        if: ${{ steps.previoustag.outputs.tag != steps.resolve_new_tag_name.outputs }}
+        if: ${{ steps.previoustag.outputs.tag != steps.resolve_new_tag_name.outputs.tag }}
         run: |
           ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository --no-daemon \
             -Psigning.keyId=${{ secrets.SIGNING_KEY_ID }} \
