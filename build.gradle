@@ -96,3 +96,9 @@ nexusPublishing {
 signing {
     sign publishing.publications.mavenJava
 }
+
+tasks.register("printVersion") {
+    doLast {
+        println(project.version)
+    }
+}
