@@ -1,8 +1,7 @@
 package com.github.tix320.ravel.internal;
 
-import java.util.List;
-
 import com.github.tix320.ravel.api.bean.BeanFactory;
+import java.util.List;
 
 public final class PrototypeBean extends BaseBean {
 
@@ -14,4 +13,5 @@ public final class PrototypeBean extends BaseBean {
 	public Object getInstance() {
 		return createInstance();
 	}
+
 }

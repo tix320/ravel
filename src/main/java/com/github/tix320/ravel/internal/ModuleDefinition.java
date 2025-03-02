@@ -1,12 +1,13 @@
 package com.github.tix320.ravel.internal;
 
+import com.github.tix320.ravel.api.bean.BeanDefinition;
+import com.github.tix320.ravel.api.bean.BeanKey;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import com.github.tix320.ravel.api.bean.BeanDefinition;
-import com.github.tix320.ravel.api.bean.BeanKey;
-
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @author Tigran Sargsyan on 25-Aug-20
@@ -19,10 +20,11 @@ public abstract class ModuleDefinition {
 
 	private final Map<BeanKey, BeanDefinition> beanDefinitions;
 
-	public ModuleDefinition(String name, List<String> dependencies, Map<BeanKey, BeanDefinition> beanDefinitions) {
+	public ModuleDefinition(String name, List<String> dependencies, Collection<BeanDefinition> beanDefinitions) {
 		this.name = name;
 		this.dependencies = dependencies;
-		this.beanDefinitions = beanDefinitions;
+		this.beanDefinitions = beanDefinitions.stream().collect(Collectors.toMap(BeanDefinition::beanKey,
+																				 Function.identity()));
 	}
 
 	public String getName() {
@@ -39,10 +41,12 @@ public abstract class ModuleDefinition {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o)
+		if (this == o) {
 			return true;
-		if (o == null || getClass() != o.getClass())
+		}
+		if (o == null || getClass() != o.getClass()) {
 			return false;
+		}
 		ModuleDefinition that = (ModuleDefinition) o;
 		return name.equals(that.name);
 	}
@@ -51,4 +55,5 @@ public abstract class ModuleDefinition {
 	public int hashCode() {
 		return Objects.hash(name);
 	}
+
 }

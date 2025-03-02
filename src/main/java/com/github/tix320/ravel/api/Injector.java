@@ -1,27 +1,43 @@
 package com.github.tix320.ravel.api;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-
 import com.github.tix320.ravel.api.bean.BeanDefinition;
 import com.github.tix320.ravel.api.bean.BeanKey;
 import com.github.tix320.ravel.api.bean.Qualifier;
 import com.github.tix320.ravel.api.module.DynamicModuleDefinition;
-import com.github.tix320.ravel.api.module.UseModules;
+import com.github.tix320.ravel.api.module.RequireModules;
 import com.github.tix320.ravel.api.scope.Prototype;
 import com.github.tix320.ravel.api.scope.Scope;
 import com.github.tix320.ravel.api.scope.Singleton;
-import com.github.tix320.ravel.internal.*;
-import com.github.tix320.ravel.internal.exception.*;
+import com.github.tix320.ravel.internal.BaseBean;
+import com.github.tix320.ravel.internal.ModuleDefinition;
+import com.github.tix320.ravel.internal.PrototypeBean;
+import com.github.tix320.ravel.internal.SingletonBean;
+import com.github.tix320.ravel.internal.StaticModuleDefinition;
+import com.github.tix320.ravel.internal.exception.BeanCreationException;
+import com.github.tix320.ravel.internal.exception.CycleDependencyException;
+import com.github.tix320.ravel.internal.exception.DuplicateBeanException;
+import com.github.tix320.ravel.internal.exception.ModuleException;
+import com.github.tix320.ravel.internal.exception.NoSuchBeanException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class Injector {
 
-	private final String ROOT_MODULE_NAME = "ROOT_" + UUID.randomUUID().toString();
+	private final String ROOT_MODULE_NAME = "ROOT_" + UUID.randomUUID();
 
 	private final Map<String, ModuleDefinition> modules;
 
@@ -71,7 +87,7 @@ public class Injector {
 		}
 
 		ModuleDefinition rootModule = new DynamicModuleDefinition(ROOT_MODULE_NAME, new ArrayList<>(modules.keySet()),
-				Map.of());
+																  List.of());
 
 		analyzeModule(rootModule);
 	}
@@ -115,30 +131,26 @@ public class Injector {
 		Object moduleInstance;
 		try {
 			moduleInstance = moduleClass.getConstructor().newInstance();
-		}
-		catch (NoSuchMethodException e) {
+		} catch (NoSuchMethodException e) {
 			throw new ModuleException(
-					String.format("Public No-arg constructor required to create instance of %s", moduleClass));
-		}
-		catch (IllegalAccessException | InstantiationException e) {
+				String.format("Public No-arg constructor required to create instance of %s", moduleClass));
+		} catch (IllegalAccessException | InstantiationException e) {
 			throw new ModuleException("Cannot create module instance", e);
 
-		}
-		catch (InvocationTargetException e) {
+		} catch (InvocationTargetException e) {
 			throw new ModuleException("Cannot create module instance", e.getTargetException());
 		}
 
-		Map<BeanKey, BeanDefinition> moduleBeanDefinitions = getModuleBeanDefinitions(moduleInstance);
+		Collection<BeanDefinition> moduleBeanDefinitions = getModuleBeanDefinitions(moduleInstance);
 
-		UseModules useModulesAnnotation = moduleClass.getAnnotation(UseModules.class);
+		RequireModules useModulesAnnotation = moduleClass.getAnnotation(RequireModules.class);
 
 		List<String> dependencies;
 		if (useModulesAnnotation == null) {
 			dependencies = List.of();
-		}
-		else {
-			String[] dynamicDependencies = useModulesAnnotation.dynamic();
-			Class<?>[] classDependencies = useModulesAnnotation.classes();
+		} else {
+			String[] dynamicDependencies = useModulesAnnotation.dynamics();
+			Class<?>[] classDependencies = useModulesAnnotation.statics();
 
 			dependencies = new ArrayList<>(dynamicDependencies.length + classDependencies.length);
 
@@ -150,8 +162,9 @@ public class Injector {
 			}
 		}
 
-		ClassBasedModuleDefinition classBasedModuleDefinition = new ClassBasedModuleDefinition(moduleName, dependencies,
-				moduleBeanDefinitions, moduleInstance);
+		StaticModuleDefinition classBasedModuleDefinition = new StaticModuleDefinition(moduleName, dependencies,
+																					   moduleBeanDefinitions,
+																					   moduleInstance);
 
 		modules.put(moduleName, classBasedModuleDefinition);
 		visitedModules.remove(moduleClass);
@@ -160,7 +173,7 @@ public class Injector {
 
 	private void analyzeModule(ModuleDefinition moduleDefinition) {
 		analyzeModule(moduleDefinition,
-				new RecursionContext(new LinkedHashSet<>(), new ArrayList<>(), new HashSet<>()));
+					  new RecursionContext(new LinkedHashSet<>(), new ArrayList<>(), new HashSet<>()));
 	}
 
 	private void analyzeModule(ModuleDefinition moduleDefinition, RecursionContext recursionContext) {
@@ -170,8 +183,8 @@ public class Injector {
 
 		if (visitedModules.contains(moduleDefinition)) {
 			List<String> parts = visitedModules.stream()
-					.map(moduleDefinition1 -> moduleDefinition.getName())
-					.collect(Collectors.toList());
+				.map(moduleDefinition1 -> moduleDefinition.getName())
+				.collect(Collectors.toList());
 			throw new CycleDependencyException("Cycle module dependency found: ", parts);
 		}
 
@@ -189,8 +202,8 @@ public class Injector {
 				BeanKey anyKey = beanInteractions.iterator().next();
 
 				throw new DuplicateBeanException(
-						String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
-								anyKey, moduleDefinition.getName(), parentModule.getName()));
+					String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
+								  anyKey, moduleDefinition.getName(), parentModule.getName()));
 			}
 		}
 
@@ -200,10 +213,9 @@ public class Injector {
 			ModuleDefinition dependentModule = modules.get(moduleName);
 			if (dependentModule == null) {
 				throw new ModuleException(
-						String.format("Module with name %s not registered, which need to module %s", moduleName,
-								moduleDefinition.getName()));
-			}
-			else {
+					String.format("Module with name %s not registered, which need to module %s", moduleName,
+								  moduleDefinition.getName()));
+			} else {
 				parentModules.add(moduleDefinition);
 				analyzeModule(dependentModule, recursionContext);
 				parentModules.remove(moduleDefinition);
@@ -216,8 +228,8 @@ public class Injector {
 		if (!interactions.isEmpty()) { // TODO error with all interactions
 			BeanKey anyKey = interactions.iterator().next();
 			throw new DuplicateBeanException(
-					String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
-							anyKey, moduleDefinition.getName(), "Unknown"));
+				String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
+							  anyKey, moduleDefinition.getName(), "Unknown"));
 		}
 
 		this.beanDefinitions.putAll(moduleDefinition.getBeanDefinitions());
@@ -231,14 +243,14 @@ public class Injector {
 	}
 
 	private BaseBean analyzeBean(BeanDefinition beanDefinition) {
-		BeanKey beanKey = beanDefinition.getBeanKey();
+		BeanKey beanKey = beanDefinition.beanKey();
 
 		BaseBean baseBean = beans.get(beanKey);
 		if (baseBean != null) {
 			return baseBean;
 		}
 
-		List<BeanKey> dependencies = beanDefinition.getDependencies();
+		List<BeanKey> dependencies = beanDefinition.dependencies();
 		List<BaseBean> dependencyBeans = new ArrayList<>(dependencies.size());
 		for (BeanKey dependentBeanKey : dependencies) {
 			Class<?> type = dependentBeanKey.getType();
@@ -246,8 +258,8 @@ public class Injector {
 			BeanDefinition dependentBeanDefinition = beanDefinitions.get(dependentBeanKey);
 			if (dependentBeanDefinition == null) {
 				throw new NoSuchBeanException(
-						String.format("Cannot construct bean %s because of missing dependency %s", beanKey.getType(),
-								type));
+					String.format("Cannot construct bean %s because of missing dependency %s", beanKey.getType(),
+								  type));
 
 			}
 
@@ -260,14 +272,12 @@ public class Injector {
 			dependencyBeans.add(dependentBean);
 		}
 
-
-		Scope scope = beanDefinition.getScope();
+		Scope scope = beanDefinition.scope();
 		BaseBean bean;
 		if (scope == Scope.PROTOTYPE) {
-			bean = new PrototypeBean(beanDefinition.getFactory(), dependencyBeans);
-		}
-		else {
-			bean = new SingletonBean(beanDefinition.getFactory(), dependencyBeans);
+			bean = new PrototypeBean(beanDefinition.factory(), dependencyBeans);
+		} else {
+			bean = new SingletonBean(beanDefinition.factory(), dependencyBeans);
 		}
 
 		beans.put(beanKey, bean);
@@ -275,7 +285,7 @@ public class Injector {
 		return bean;
 	}
 
-	private Map<BeanKey, BeanDefinition> getModuleBeanDefinitions(Object moduleInstance) {
+	private Collection<BeanDefinition> getModuleBeanDefinitions(Object moduleInstance) {
 		Class<?> moduleClass = moduleInstance.getClass();
 		Method[] methods = moduleClass.getDeclaredMethods();
 
@@ -286,24 +296,23 @@ public class Injector {
 			Prototype prototypeAnnotation = method.getAnnotation(Prototype.class);
 			if (singletonAnnotation != null && prototypeAnnotation != null) {
 				throw new ModuleException(
-						String.format("Both @%s and @%s annotations declared in method %s (%s)", Singleton.class,
-								Prototype.class, method.getName(), moduleClass));
+					String.format("Both @%s and @%s annotations declared in method %s (%s)", Singleton.class,
+								  Prototype.class, method.getName(), moduleClass));
 			}
 
 			if (singletonAnnotation != null || prototypeAnnotation != null) {
 				Scope scope;
 				if (singletonAnnotation != null) {
 					scope = Scope.SINGLETON;
-				}
-				else {
+				} else {
 					scope = Scope.PROTOTYPE;
 				}
 
 				boolean isPublic = Modifier.isPublic(method.getModifiers());
 				if (!isPublic) {
 					throw new ModuleException(
-							String.format("Bean factory method must be public.\nMethod %s in module %s",
-									method.getName(), moduleClass.getName()));
+						String.format("Bean factory method must be public.\nMethod %s in module %s",
+									  method.getName(), moduleClass.getName()));
 				}
 
 				Qualifier qualifierAnnotation = method.getAnnotation(Qualifier.class);
@@ -313,8 +322,8 @@ public class Injector {
 
 				if (beanDefinitions.containsKey(beanKey)) {
 					throw new DuplicateBeanException(
-							String.format("Duplicated beans with same type and qualifier %s in module %s", beanKey,
-									moduleClass.getName()));
+						String.format("Duplicated beans with same type and qualifier %s in module %s", beanKey,
+									  moduleClass.getName()));
 				}
 
 				List<BeanKey> dependencies = new ArrayList<>();
@@ -329,18 +338,16 @@ public class Injector {
 				beanDefinitions.put(beanKey, new BeanDefinition(beanKey, scope, dependencies, deps -> {
 					try {
 						return method.invoke(moduleInstance, deps);
-					}
-					catch (IllegalAccessException e) {
+					} catch (IllegalAccessException e) {
 						throw new BeanCreationException("Cannot construct bean", e);
-					}
-					catch (InvocationTargetException e) {
+					} catch (InvocationTargetException e) {
 						throw new BeanCreationException("Cannot construct bean", e.getTargetException());
 					}
 				}));
 			}
 		}
 
-		return beanDefinitions;
+		return beanDefinitions.values();
 	}
 
 	private static <T> Set<T> getSetsInteraction(Set<T> set1, Set<T> set2) {
@@ -349,17 +356,9 @@ public class Injector {
 		return intersectSet;
 	}
 
+	private record RecursionContext(LinkedHashSet<ModuleDefinition> visitedModules,
+									List<ModuleDefinition> parentModules, Set<ModuleDefinition> processedModules) {
 
-	private static final class RecursionContext {
-		private final LinkedHashSet<ModuleDefinition> visitedModules;
-		private final List<ModuleDefinition> parentModules;
-		private final Set<ModuleDefinition> processedModules;
-
-		private RecursionContext(LinkedHashSet<ModuleDefinition> visitedModules, List<ModuleDefinition> parentModules,
-								 Set<ModuleDefinition> processedModules) {
-			this.visitedModules = visitedModules;
-			this.parentModules = parentModules;
-			this.processedModules = processedModules;
-		}
 	}
+
 }

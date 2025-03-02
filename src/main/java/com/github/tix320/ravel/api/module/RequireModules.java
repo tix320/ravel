@@ -7,9 +7,10 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface UseModules {
+public @interface RequireModules {
 
-	Class<?>[] classes() default {};
+	Class<?>[] statics() default {};
 
-	String[] dynamic() default {};
+	String[] dynamics() default {};
+
 }

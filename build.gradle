@@ -31,7 +31,7 @@ test {
 }
 
 group = 'com.github.tix320'
-version = '0.3.1'
+version = '0.4.0'
 
 sonatypeUsername = findProperty("sonatypeUsername")
 sonatypePassword = findProperty("sonatypePassword")
