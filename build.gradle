@@ -31,6 +31,10 @@ test {
     }
 }
 
+javadoc {
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+
 group = 'com.github.tix320'
 version = '1.0.0'
 
