@@ -21,10 +21,10 @@ public abstract class ModuleDefinition {
 	private final Map<BeanKey, BeanDefinition> beanDefinitions;
 
 	public ModuleDefinition(String name, List<String> dependencies, Collection<BeanDefinition> beanDefinitions) {
-		this.name = name;
-		this.dependencies = dependencies;
-		this.beanDefinitions = beanDefinitions.stream().collect(Collectors.toMap(BeanDefinition::beanKey,
-																				 Function.identity()));
+		this.name = Objects.requireNonNull(name);
+		this.dependencies = List.copyOf(dependencies);
+		this.beanDefinitions = Map.copyOf(beanDefinitions.stream().collect(Collectors.toMap(BeanDefinition::beanKey,
+																							Function.identity())));
 	}
 
 	public String getName() {

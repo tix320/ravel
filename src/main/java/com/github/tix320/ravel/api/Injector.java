@@ -127,6 +127,13 @@ public class Injector {
 		visitedModules.add(moduleClass);
 
 		String moduleName = moduleClass.getName();
+		if (modules.containsKey(moduleName)) {
+			throw new IllegalArgumentException(String.format("Module with name %s already registered", moduleName));
+		}
+
+		if (!Modifier.isFinal(moduleClass.getModifiers())) {
+			throw new ModuleException(String.format("Module class %s must be final", moduleName));
+		}
 
 		Object moduleInstance;
 		try {
@@ -183,7 +190,8 @@ public class Injector {
 
 		if (visitedModules.contains(moduleDefinition)) {
 			List<String> parts = visitedModules.stream()
-				.map(moduleDefinition1 -> moduleDefinition.getName())
+				.dropWhile(visitedModule -> !visitedModule.equals(moduleDefinition))
+				.map(ModuleDefinition::getName)
 				.collect(Collectors.toList());
 			throw new CycleDependencyException("Cycle module dependency found: ", parts);
 		}
@@ -198,12 +206,11 @@ public class Injector {
 			Set<BeanKey> parentBeanKeys = parentModule.getBeanDefinitions().keySet();
 			Set<BeanKey> currentModuleBeanKeys = moduleDefinition.getBeanDefinitions().keySet();
 			Set<BeanKey> beanInteractions = getSetsInteraction(parentBeanKeys, currentModuleBeanKeys);
-			if (!beanInteractions.isEmpty()) { // TODO error with all interactions
-				BeanKey anyKey = beanInteractions.iterator().next();
-
+			if (!beanInteractions.isEmpty()) {
 				throw new DuplicateBeanException(
 					String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
-								  anyKey, moduleDefinition.getName(), parentModule.getName()));
+								  formatBeanKeys(beanInteractions), moduleDefinition.getName(),
+								  parentModule.getName()));
 			}
 		}
 
@@ -225,11 +232,10 @@ public class Injector {
 		Set<BeanKey> alreadyExistingBeanDefinitions = this.beanDefinitions.keySet();
 		Set<BeanKey> definitionsToAdd = moduleDefinition.getBeanDefinitions().keySet();
 		Set<BeanKey> interactions = getSetsInteraction(alreadyExistingBeanDefinitions, definitionsToAdd);
-		if (!interactions.isEmpty()) { // TODO error with all interactions
-			BeanKey anyKey = interactions.iterator().next();
+		if (!interactions.isEmpty()) {
 			throw new DuplicateBeanException(
 				String.format("Duplicated beans with same type and qualifier %s in different modules [%s, %s]",
-							  anyKey, moduleDefinition.getName(), "Unknown"));
+							  formatBeanKeys(interactions), moduleDefinition.getName(), "Unknown"));
 		}
 
 		this.beanDefinitions.putAll(moduleDefinition.getBeanDefinitions());
@@ -243,12 +249,26 @@ public class Injector {
 	}
 
 	private BaseBean analyzeBean(BeanDefinition beanDefinition) {
+		return analyzeBean(beanDefinition, new LinkedHashSet<>());
+	}
+
+	private BaseBean analyzeBean(BeanDefinition beanDefinition, LinkedHashSet<BeanKey> visitedBeans) {
 		BeanKey beanKey = beanDefinition.beanKey();
 
 		BaseBean baseBean = beans.get(beanKey);
 		if (baseBean != null) {
 			return baseBean;
 		}
+
+		if (visitedBeans.contains(beanKey)) {
+			List<String> parts = visitedBeans.stream()
+				.dropWhile(visitedBean -> !visitedBean.equals(beanKey))
+				.map(BeanKey::toString)
+				.collect(Collectors.toList());
+			throw new CycleDependencyException("Cycle bean dependency found: ", parts);
+		}
+
+		visitedBeans.add(beanKey);
 
 		List<BeanKey> dependencies = beanDefinition.dependencies();
 		List<BaseBean> dependencyBeans = new ArrayList<>(dependencies.size());
@@ -266,11 +286,13 @@ public class Injector {
 			BaseBean dependentBean = beans.get(dependentBeanKey);
 
 			if (dependentBean == null) {
-				dependentBean = analyzeBean(dependentBeanDefinition);
+				dependentBean = analyzeBean(dependentBeanDefinition, visitedBeans);
 			}
 
 			dependencyBeans.add(dependentBean);
 		}
+
+		visitedBeans.remove(beanKey);
 
 		Scope scope = beanDefinition.scope();
 		BaseBean bean;
@@ -354,6 +376,13 @@ public class Injector {
 		Set<T> intersectSet = new HashSet<>(set1);
 		intersectSet.retainAll(set2);
 		return intersectSet;
+	}
+
+	private static String formatBeanKeys(Set<BeanKey> beanKeys) {
+		return beanKeys.stream()
+			.map(BeanKey::toString)
+			.sorted()
+			.collect(Collectors.joining(", ", "[", "]"));
 	}
 
 	private record RecursionContext(LinkedHashSet<ModuleDefinition> visitedModules,

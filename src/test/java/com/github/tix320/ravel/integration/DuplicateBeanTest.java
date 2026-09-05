@@ -19,7 +19,7 @@ public class DuplicateBeanTest {
 		});
 	}
 
-	public static class Module {
+	public static final class Module {
 
 		@Singleton
 		@Qualifier("auu")

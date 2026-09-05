@@ -12,7 +12,7 @@ public class BeanKey {
     }
 
     public BeanKey(Class<?> type, String qualifier) {
-        this.type = type;
+        this.type = Objects.requireNonNull(type);
         this.qualifier = qualifier;
     }
 

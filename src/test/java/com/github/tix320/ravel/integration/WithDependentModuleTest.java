@@ -20,7 +20,7 @@ public class WithDependentModuleTest {
 	}
 
 	@RequireModules(statics = {ModuleB.class})
-	public static class ModuleA {
+	public static final class ModuleA {
 
 		@Singleton
 		public BeanA a(BeanB b) {
@@ -29,7 +29,7 @@ public class WithDependentModuleTest {
 
 	}
 
-	public static class ModuleB {
+	public static final class ModuleB {
 
 		@Singleton
 		public BeanB b() {

@@ -20,9 +20,9 @@ public class DuplicateBeansInTwoModulesTest {
 	}
 
 	@RequireModules(statics = {MyFirstModule.class, MySecondModule.class})
-	public static class BaseModule {}
+	public static final class BaseModule {}
 
-	public static class MyFirstModule {
+	public static final class MyFirstModule {
 
 		@Singleton
 		public Bean b() {
@@ -31,7 +31,7 @@ public class DuplicateBeansInTwoModulesTest {
 
 	}
 
-	public static class MySecondModule {
+	public static final class MySecondModule {
 
 		@Singleton
 		public Bean b() {

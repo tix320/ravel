@@ -2,6 +2,7 @@ package com.github.tix320.ravel.internal;
 
 import com.github.tix320.ravel.api.bean.BeanFactory;
 import java.util.List;
+import java.util.Objects;
 
 public abstract class BaseBean {
 
@@ -22,7 +23,7 @@ public abstract class BaseBean {
 			args[i] = baseBean.getInstance();
 		}
 
-		return factoryMethod.create(args);
+		return Objects.requireNonNull(factoryMethod.create(args), "Bean factory must not return null");
 	}
 
 	public abstract Object getInstance();

@@ -31,7 +31,7 @@ public class MixedModuleTest {
 	}
 
 	@RequireModules(dynamics = "dynamic")
-	public static class Module {
+	public static final class Module {
 
 		@Singleton
 		public BeanA a(BeanB b) {

@@ -18,7 +18,7 @@ public class NoSuchBeanTest {
 		});
 	}
 
-	public static class Module {
+	public static final class Module {
 
 		@Singleton
 		public BeanA a(BeanB b) {
